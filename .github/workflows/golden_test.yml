@@ -1,0 +1,110 @@
+name: Golden Test on PR Label
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  golden_test:
+    # Run this job only when the 'golden_test' label is added
+    if: github.event.label.name == 'golden_test'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Head Branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Generate "After" Goldens (Head)
+        run: flutter test --update-goldens
+
+      - name: Organize "After" Goldens
+        run: |
+          mkdir -p .goldens/after
+          mv goldens/* .goldens/after/
+
+      - name: Checkout Base Branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.base_ref }}
+          clean: false # Important to not delete the .goldens/after directory
+
+      - name: Generate "Before" Goldens (Base)
+        run: flutter test --update-goldens
+
+      - name: Organize "Before" Goldens
+        run: |
+          mkdir -p .goldens/before
+          mv goldens/* .goldens/before/
+
+      - name: Commit and Push Golden Diffs
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .goldens
+          # Check if there are any changes to commit
+          if git diff --staged --quiet; then
+            echo "No golden file changes to commit."
+          else
+            git commit -m "chore: [CI] Add golden test diffs"
+            git push
+          fi
+
+      - name: Find Changed Goldens and Post Comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            // Find files that are different between the two directories
+            let diffOutput;
+            try {
+              diffOutput = execSync('diff -qr .goldens/before .goldens/after').toString();
+            } catch (error) {
+              diffOutput = error.stdout.toString();
+            }
+
+            const changedFiles = diffOutput.split('\n').filter(line => line.includes('Files') && line.includes('differ'));
+
+            if (changedFiles.length === 0) {
+              console.log('No golden file differences found.');
+              return;
+            }
+
+            let commentBody = '## 📸 Golden Test Report\n\n';
+            commentBody += '| Before | After | File |\n';
+            commentBody += '|:------:|:-----:|:-----|\n';
+
+            const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
+
+            for (const line of changedFiles) {
+              const fileNameMatch = line.match(/differ$/) ? line.split(' and ')[0].replace('Files .goldens/before/', '') : null;
+              if (fileNameMatch) {
+                const fileName = fileNameMatch.trim();
+                const beforeUrl = `${repoUrl}/blob/${{ github.head_ref }}/.goldens/before/${fileName}?raw=true`;
+                const afterUrl = `${repoUrl}/blob/${{ github.head_ref }}/.goldens/after/${fileName}?raw=true`;
+
+                commentBody += `| ![Before](${beforeUrl}) | ![After](${afterUrl}) | \`${fileName}\` |\n`;
+              }
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });
+
+      - name: Clean up temporary goldens directory
+        if: always()
+        run: rm -rf .goldens
