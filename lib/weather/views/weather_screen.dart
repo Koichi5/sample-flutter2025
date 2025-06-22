@@ -10,7 +10,7 @@ class WeatherScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tokyo Weather')),
+      appBar: AppBar(title: const Text('Tokyo Weather Edited')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
