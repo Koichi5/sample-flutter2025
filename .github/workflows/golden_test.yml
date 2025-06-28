@@ -28,7 +28,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.31.0"
+          flutter-version: "3.32.5"
           cache: true
 
       - name: Update Dependencies
