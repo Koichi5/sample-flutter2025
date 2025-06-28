@@ -363,6 +363,8 @@ jobs:
 
       - name: Restore Head Branch Files
         run: |
+          # Clean up any untracked files that might interfere with checkout
+          git clean -fd .goldens/ || true
           git checkout ${{ github.head_ref }}
 
       - name: Commit Generated Golden Tests and Images
