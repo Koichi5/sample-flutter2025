@@ -32,7 +32,7 @@ void main() {
 
     goldenTest(
       'renders correctly on various devices and themes',
-      fileName: 'weather_view_scenarios',
+      fileName: 'weather_view',
       builder:
           () => GoldenTestGroup(
             columns: 2,

@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -30,77 +31,448 @@ jobs:
           flutter-version: "3.32.5"
           cache: true
 
-      - name: Generate "After" Goldens (Head)
+      - name: Detect Changed View Files
+        id: detect_changes
+        run: |
+          # Get the list of changed files between base and head
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          # Find view files (widgets, views, pages) that have been changed or added
+          VIEW_FILES=$(echo "$CHANGED_FILES" | grep -E "lib/.*(widgets|views|pages)/.*\.dart$" | grep -v "\.g\.dart$" | grep -v "\.freezed\.dart$" || true)
+
+          echo "Changed view files:"
+          echo "$VIEW_FILES"
+
+          # Create a JSON array of changed view files
+          if [ -n "$VIEW_FILES" ]; then
+            VIEW_FILES_JSON=$(echo "$VIEW_FILES" | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          else
+            VIEW_FILES_JSON="[]"
+          fi
+
+          echo "view_files=$VIEW_FILES_JSON" >> $GITHUB_OUTPUT
+
+      - name: Analyze Golden Test Status
+        id: analyze_tests
+        run: |
+          VIEW_FILES='${{ steps.detect_changes.outputs.view_files }}'
+
+          if [ "$VIEW_FILES" == "[]" ]; then
+            echo "No view files changed"
+            echo "scenarios={}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          SCENARIOS="{}"
+
+          for file in $(echo "$VIEW_FILES" | jq -r '.[]'); do
+            # Extract the file name without extension and path
+            filename=$(basename "$file" .dart)
+            relative_path=$(dirname "$file" | sed 's|lib/||')
+
+            # Check if golden test exists in head branch
+            test_file="test/${relative_path}/${filename}_golden_test.dart"
+            head_has_test=false
+            if [ -f "$test_file" ]; then
+              head_has_test=true
+            fi
+
+            # Check if the view file existed in base branch
+            git checkout origin/${{ github.base_ref }} -- "$file" 2>/dev/null
+            base_has_file=$?
+
+            # Check if golden test existed in base branch
+            base_has_test=false
+            if [ $base_has_file -eq 0 ] && [ -f "$test_file" ]; then
+              base_has_test=true
+            fi
+
+            # Go back to head branch
+            git checkout HEAD -- "$file" "$test_file" 2>/dev/null || true
+
+            # Determine scenario
+            if [ $base_has_file -ne 0 ]; then
+              # New file
+              scenario="new_view"
+            elif [ "$base_has_test" = true ] && [ "$head_has_test" = true ]; then
+              # Existing golden test
+              scenario="existing_golden_test"
+            elif [ "$base_has_test" = false ] && [ "$head_has_test" = false ]; then
+              # No golden test, but view exists
+              scenario="no_golden_test"
+            else
+              # Golden test was added/removed
+              scenario="existing_golden_test"
+            fi
+
+            # Add to scenarios JSON
+            SCENARIOS=$(echo "$SCENARIOS" | jq --arg file "$file" --arg scenario "$scenario" --arg test_file "$test_file" '. + {($file): {scenario: $scenario, test_file: $test_file}}')
+          done
+
+          echo "scenarios=$SCENARIOS" >> $GITHUB_OUTPUT
+          echo "Detected scenarios:"
+          echo "$SCENARIOS" | jq .
+
+      - name: Generate Missing Golden Tests (Head Branch)
+        run: |
+          SCENARIOS='${{ steps.analyze_tests.outputs.scenarios }}'
+
+          if [ "$SCENARIOS" == "{}" ]; then
+            echo "No scenarios to process"
+            exit 0
+          fi
+
+          # Create golden tests for files that need them
+          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
+            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
+            test_file=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].test_file')
+
+            if [ "$scenario" = "no_golden_test" ] || [ "$scenario" = "new_view" ]; then
+              echo "Generating golden test for $file"
+
+              # Create test directory if it doesn't exist
+              mkdir -p "$(dirname "$test_file")"
+
+              # Generate golden test content
+              python3 << 'EOF'
+import sys
+import os
+import re
+
+file_path = sys.argv[1]
+test_file_path = sys.argv[2]
+
+# Extract class name from dart file
+with open(file_path, 'r') as f:
+    content = f.read()
+
+# Find the main widget class
+class_match = re.search(r'class\s+(\w+)\s+extends\s+StatelessWidget', content)
+if not class_match:
+    class_match = re.search(r'class\s+(\w+)\s+extends\s+StatefulWidget', content)
+
+if not class_match:
+    print(f"Could not find widget class in {file_path}")
+    sys.exit(1)
+
+class_name = class_match.group(1)
+file_name = os.path.basename(file_path).replace('.dart', '')
+
+# Extract relative import path
+relative_path = file_path.replace('lib/', '')
+
+# Generate test content using string formatting to avoid brace conflicts
+test_content = """import 'package:alchemist/alchemist.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sample_flutter2025/{relative_path}';
+
+import '../../support/alchemist/device.dart';
+
+void main() {{
+  group('{class_name} Golden Tests', () {{
+    Widget buildApp({{required Brightness brightness}}) {{
+      return MaterialApp(
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+            brightness: brightness,
+          ),
+        ),
+        debugShowCheckedModeBanner: false,
+        home: const {class_name}(),
+      );
+    }}
+
+    goldenTest(
+      'renders correctly on various devices and themes',
+      fileName: '{file_name}',
+      builder: () => GoldenTestGroup(
+        columns: 2,
+        children: Device.all
+            .map(
+              (device) => GoldenTestScenario(
+                name: device.name,
+                constraints: BoxConstraints.tight(device.size),
+                child: Builder(
+                  builder: (context) {{
+                    return buildApp(brightness: device.brightness);
+                  }},
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }});
+}}
+""".format(
+    relative_path=relative_path,
+    class_name=class_name,
+    file_name=file_name
+)
+
+with open(test_file_path, 'w') as f:
+    f.write(test_content)
+
+print(f"Generated golden test: {test_file_path}")
+EOF
+              python3 "$file" "$test_file"
+            fi
+          done
+
+      - name: Generate "After" Goldens (Head Branch)
         run: flutter test --update-goldens
 
       - name: Organize "After" Goldens
         run: |
           mkdir -p .goldens/after
-          mv goldens/* .goldens/after/
+          find test -type f -path "*/goldens/ci/*.png" -exec cp --parents {} .goldens/after/ \;
 
       - name: Checkout Base Branch
         uses: actions/checkout@v3
         with:
           ref: ${{ github.base_ref }}
-          clean: false # Important to not delete the .goldens/after directory
+          clean: false
 
-      - name: Generate "Before" Goldens (Base)
-        run: flutter test --update-goldens
+      - name: Generate Missing Golden Tests (Base Branch)
+        run: |
+          SCENARIOS='${{ steps.analyze_tests.outputs.scenarios }}'
+
+          if [ "$SCENARIOS" == "{}" ]; then
+            echo "No scenarios to process"
+            exit 0
+          fi
+
+          # Create golden tests for files that existed in base but didn't have tests
+          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
+            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
+            test_file=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].test_file')
+
+            if [ "$scenario" = "no_golden_test" ] && [ -f "$file" ]; then
+              echo "Generating golden test for base version of $file"
+
+              # Create test directory if it doesn't exist
+              mkdir -p "$(dirname "$test_file")"
+
+              # Generate golden test content (same as head branch)
+              python3 << 'EOF'
+import sys
+import os
+import re
+
+file_path = sys.argv[1]
+test_file_path = sys.argv[2]
+
+# Extract class name from dart file
+with open(file_path, 'r') as f:
+    content = f.read()
+
+# Find the main widget class
+class_match = re.search(r'class\s+(\w+)\s+extends\s+StatelessWidget', content)
+if not class_match:
+    class_match = re.search(r'class\s+(\w+)\s+extends\s+StatefulWidget', content)
+
+if not class_match:
+    print(f"Could not find widget class in {file_path}")
+    sys.exit(1)
+
+class_name = class_match.group(1)
+file_name = os.path.basename(file_path).replace('.dart', '')
+
+# Extract relative import path
+relative_path = file_path.replace('lib/', '')
+
+# Generate test content using string formatting to avoid brace conflicts
+test_content = """import 'package:alchemist/alchemist.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sample_flutter2025/{relative_path}';
+
+import '../../support/alchemist/device.dart';
+
+void main() {{
+  group('{class_name} Golden Tests', () {{
+    Widget buildApp({{required Brightness brightness}}) {{
+      return MaterialApp(
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+            brightness: brightness,
+          ),
+        ),
+        debugShowCheckedModeBanner: false,
+        home: const {class_name}(),
+      );
+    }}
+
+    goldenTest(
+      'renders correctly on various devices and themes',
+      fileName: '{file_name}',
+      builder: () => GoldenTestGroup(
+        columns: 2,
+        children: Device.all
+            .map(
+              (device) => GoldenTestScenario(
+                name: device.name,
+                constraints: BoxConstraints.tight(device.size),
+                child: Builder(
+                  builder: (context) {{
+                    return buildApp(brightness: device.brightness);
+                  }},
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }});
+}}
+""".format(
+    relative_path=relative_path,
+    class_name=class_name,
+    file_name=file_name
+)
+
+with open(test_file_path, 'w') as f:
+    f.write(test_content)
+
+print(f"Generated golden test: {test_file_path}")
+EOF
+              python3 "$file" "$test_file"
+            fi
+          done
+
+      - name: Generate "Before" Goldens (Base Branch)
+        run: |
+          SCENARIOS='${{ steps.analyze_tests.outputs.scenarios }}'
+
+          # Only run tests for scenarios that should have "before" images
+          has_before_scenarios=false
+          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
+            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
+            if [ "$scenario" != "new_view" ]; then
+              has_before_scenarios=true
+              break
+            fi
+          done
+
+          if [ "$has_before_scenarios" = true ]; then
+            flutter test --update-goldens
+          else
+            echo "No before scenarios found, skipping base golden generation"
+            mkdir -p test  # Ensure test directory exists for next step
+          fi
 
       - name: Organize "Before" Goldens
         run: |
           mkdir -p .goldens/before
-          mv goldens/* .goldens/before/
+          find test -type f -path "*/goldens/ci/*.png" -exec cp --parents {} .goldens/before/ \; 2>/dev/null || true
 
-      - name: Commit and Push Golden Diffs
+      - name: Restore Head Branch Files
+        run: |
+          git checkout ${{ github.head_ref }}
+
+      - name: Commit Generated Golden Tests and Images
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add .goldens
+
+          # Add generated test files and golden images
+          git add test/
+          git add .goldens/
+
           # Check if there are any changes to commit
           if git diff --staged --quiet; then
-            echo "No golden file changes to commit."
+            echo "No golden test changes to commit."
           else
-            git commit -m "chore: [CI] Add golden test diffs"
-            git push
+            git commit -m "chore: [CI] Auto-generate golden tests and update golden images"
+            git push origin ${{ github.head_ref }}
           fi
 
-      - name: Find Changed Goldens and Post Comment
+      - name: Generate Golden Test Report
         uses: actions/github-script@v6
         with:
           script: |
             const { execSync } = require('child_process');
+            const fs = require('fs');
 
-            // Find files that are different between the two directories
-            let diffOutput;
-            try {
-              diffOutput = execSync('diff -qr .goldens/before .goldens/after').toString();
-            } catch (error) {
-              diffOutput = error.stdout.toString();
-            }
+            const scenarios = JSON.parse('${{ steps.analyze_tests.outputs.scenarios }}');
+            const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
 
-            const changedFiles = diffOutput.split('\n').filter(line => line.includes('Files') && line.includes('differ'));
-
-            if (changedFiles.length === 0) {
-              console.log('No golden file differences found.');
+            if (Object.keys(scenarios).length === 0) {
+              console.log('No scenarios to report.');
               return;
             }
 
             let commentBody = '## 📸 Golden Test Report\n\n';
-            commentBody += '| Before | After | File |\n';
-            commentBody += '|:------:|:-----:|:-----|\n';
 
-            const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
+            for (const [filePath, info] of Object.entries(scenarios)) {
+              const fileName = filePath.split('/').pop().replace('.dart', '');
+              const scenario = info.scenario;
 
-            for (const line of changedFiles) {
-              const fileNameMatch = line.match(/differ$/) ? line.split(' and ')[0].replace('Files .goldens/before/', '') : null;
-              if (fileNameMatch) {
-                const fileName = fileNameMatch.trim();
-                const beforeUrl = `${repoUrl}/blob/${{ github.head_ref }}/.goldens/before/${fileName}?raw=true`;
-                const afterUrl = `${repoUrl}/blob/${{ github.head_ref }}/.goldens/after/${fileName}?raw=true`;
+              commentBody += `### ${fileName} (${scenario})\n\n`;
 
-                commentBody += `| ![Before](${beforeUrl}) | ![After](${afterUrl}) | \`${fileName}\` |\n`;
+              // Find golden images for this file
+              let beforeImages = [];
+              let afterImages = [];
+
+              try {
+                const beforeFiles = execSync('find .goldens/before -name "*.png" 2>/dev/null || true').toString().split('\n').filter(Boolean);
+                const afterFiles = execSync('find .goldens/after -name "*.png" 2>/dev/null || true').toString().split('\n').filter(Boolean);
+
+                beforeImages = beforeFiles.filter(file => file.includes(fileName));
+                afterImages = afterFiles.filter(file => file.includes(fileName));
+              } catch (error) {
+                console.log('Error finding image files:', error.message);
               }
+
+              if (scenario === 'new_view') {
+                commentBody += '| New Widget | Status |\n|:----------:|:------:|\n';
+                for (const afterImage of afterImages) {
+                  const imagePath = afterImage.replace('.goldens/after/', '');
+                  const afterUrl = `${repoUrl}/blob/${{ github.head_ref }}/.goldens/after/${imagePath}?raw=true`;
+                  commentBody += `| ![New](${afterUrl}) | ✅ Created |\n`;
+                }
+              } else {
+                commentBody += '| Before | After | Status |\n|:------:|:-----:|:------:|\n';
+
+                const allImages = new Set([
+                  ...beforeImages.map(img => img.replace('.goldens/before/', '')),
+                  ...afterImages.map(img => img.replace('.goldens/after/', ''))
+                ]);
+
+                for (const imagePath of allImages) {
+                  const beforeExists = beforeImages.some(img => img.includes(imagePath));
+                  const afterExists = afterImages.some(img => img.includes(imagePath));
+
+                  const beforeUrl = beforeExists ?
+                    `${repoUrl}/blob/${{ github.head_ref }}/.goldens/before/${imagePath}?raw=true` : '';
+                  const afterUrl = afterExists ?
+                    `${repoUrl}/blob/${{ github.head_ref }}/.goldens/after/${imagePath}?raw=true` : '';
+
+                  let status = '';
+                  if (scenario === 'no_golden_test') {
+                    status = '🆕 Auto-generated';
+                  } else if (beforeExists && afterExists) {
+                    status = '🔄 Updated';
+                  } else if (!beforeExists && afterExists) {
+                    status = '✅ Added';
+                  } else if (beforeExists && !afterExists) {
+                    status = '❌ Removed';
+                  }
+
+                  const beforeCell = beforeExists ? `![Before](${beforeUrl})` : 'N/A';
+                  const afterCell = afterExists ? `![After](${afterUrl})` : 'N/A';
+
+                  commentBody += `| ${beforeCell} | ${afterCell} | ${status} |\n`;
+                }
+              }
+
+              commentBody += '\n';
             }
 
             await github.rest.issues.createComment({
