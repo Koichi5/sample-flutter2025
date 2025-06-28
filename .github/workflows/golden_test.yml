@@ -31,7 +31,7 @@ jobs:
           flutter-version: "3.31.0"
           cache: true
 
-                  - name: Update Dependencies
+      - name: Update Dependencies
         run: |
           # Light cleanup - only clear dependency locks
           rm -rf pubspec.lock
@@ -245,7 +245,7 @@ jobs:
           ref: ${{ github.base_ref }}
           clean: false
 
-            - name: Update Dependencies (Base Branch)
+      - name: Update Dependencies (Base Branch)
         run: |
           # Light cleanup - only clear dependency locks
           rm -rf pubspec.lock
