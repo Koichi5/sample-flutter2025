@@ -135,7 +135,7 @@ jobs:
               mkdir -p "$(dirname "$test_file")"
 
               # Generate golden test content
-              python3 << 'EOF'
+              cat > generate_test.py << 'EOF'
 import sys
 import os
 import re
@@ -170,9 +170,9 @@ import 'package:sample_flutter2025/{relative_path}';
 
 import '../../support/alchemist/device.dart';
 
-void main() {{
-  group('{class_name} Golden Tests', () {{
-    Widget buildApp({{required Brightness brightness}}) {{
+void main() {{{{
+  group('{class_name} Golden Tests', () {{{{
+    Widget buildApp({{{{required Brightness brightness}}}}) {{{{
       return MaterialApp(
         theme: ThemeData(
           useMaterial3: true,
@@ -184,7 +184,7 @@ void main() {{
         debugShowCheckedModeBanner: false,
         home: const {class_name}(),
       );
-    }}
+    }}}}
 
     goldenTest(
       'renders correctly on various devices and themes',
@@ -197,17 +197,17 @@ void main() {{
                 name: device.name,
                 constraints: BoxConstraints.tight(device.size),
                 child: Builder(
-                  builder: (context) {{
+                  builder: (context) {{{{
                     return buildApp(brightness: device.brightness);
-                  }},
+                  }}}},
                 ),
               ),
             )
             .toList(),
       ),
     );
-  }});
-}}
+  }}}});
+}}}}
 """.format(
     relative_path=relative_path,
     class_name=class_name,
@@ -219,7 +219,8 @@ with open(test_file_path, 'w') as f:
 
 print(f"Generated golden test: {test_file_path}")
 EOF
-              python3 "$file" "$test_file"
+              python3 generate_test.py "$file" "$test_file"
+              rm generate_test.py
             fi
           done
 
@@ -258,7 +259,7 @@ EOF
               mkdir -p "$(dirname "$test_file")"
 
               # Generate golden test content (same as head branch)
-              python3 << 'EOF'
+              cat > generate_test.py << 'EOF'
 import sys
 import os
 import re
@@ -293,9 +294,9 @@ import 'package:sample_flutter2025/{relative_path}';
 
 import '../../support/alchemist/device.dart';
 
-void main() {{
-  group('{class_name} Golden Tests', () {{
-    Widget buildApp({{required Brightness brightness}}) {{
+void main() {{{{
+  group('{class_name} Golden Tests', () {{{{
+    Widget buildApp({{{{required Brightness brightness}}}}) {{{{
       return MaterialApp(
         theme: ThemeData(
           useMaterial3: true,
@@ -307,7 +308,7 @@ void main() {{
         debugShowCheckedModeBanner: false,
         home: const {class_name}(),
       );
-    }}
+    }}}}
 
     goldenTest(
       'renders correctly on various devices and themes',
@@ -320,17 +321,17 @@ void main() {{
                 name: device.name,
                 constraints: BoxConstraints.tight(device.size),
                 child: Builder(
-                  builder: (context) {{
+                  builder: (context) {{{{
                     return buildApp(brightness: device.brightness);
-                  }},
+                  }}}},
                 ),
               ),
             )
             .toList(),
       ),
     );
-  }});
-}}
+  }}}});
+}}}}
 """.format(
     relative_path=relative_path,
     class_name=class_name,
@@ -342,7 +343,8 @@ with open(test_file_path, 'w') as f:
 
 print(f"Generated golden test: {test_file_path}")
 EOF
-              python3 "$file" "$test_file"
+              python3 generate_test.py "$file" "$test_file"
+              rm generate_test.py
             fi
           done
 
