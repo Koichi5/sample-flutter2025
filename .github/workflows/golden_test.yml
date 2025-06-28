@@ -144,53 +144,53 @@ jobs:
             mkdir -p "$(dirname "$test_file")"
 
             # Generate golden test content
-            cat > "$test_file" << EOF
-import 'package:alchemist/alchemist.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:sample_flutter2025/$relative_path';
-
-import '../../support/alchemist/device.dart';
-
-void main() {
-  group('$class_name Golden Tests', () {
-    Widget buildApp({required Brightness brightness}) {
-      return MaterialApp(
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
-            brightness: brightness,
-          ),
-        ),
-        debugShowCheckedModeBanner: false,
-        home: const $class_name(),
-      );
-    }
-
-    goldenTest(
-      'renders correctly on various devices and themes',
-      fileName: '$file_name',
-      builder: () => GoldenTestGroup(
-        columns: 2,
-        children: Device.all
-            .map(
-              (device) => GoldenTestScenario(
-                name: device.name,
-                constraints: BoxConstraints.tight(device.size),
-                child: Builder(
-                  builder: (context) {
-                    return buildApp(brightness: device.brightness);
-                  },
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  });
-}
-EOF
+            {
+              echo "import 'package:alchemist/alchemist.dart';"
+              echo "import 'package:flutter/material.dart';"
+              echo "import 'package:flutter_test/flutter_test.dart';"
+              echo "import 'package:sample_flutter2025/$relative_path';"
+              echo ""
+              echo "import '../../support/alchemist/device.dart';"
+              echo ""
+              echo "void main() {"
+              echo "  group('$class_name Golden Tests', () {"
+              echo "    Widget buildApp({required Brightness brightness}) {"
+              echo "      return MaterialApp("
+              echo "        theme: ThemeData("
+              echo "          useMaterial3: true,"
+              echo "          colorScheme: ColorScheme.fromSeed("
+              echo "            seedColor: Colors.deepPurple,"
+              echo "            brightness: brightness,"
+              echo "          ),"
+              echo "        ),"
+              echo "        debugShowCheckedModeBanner: false,"
+              echo "        home: const $class_name(),"
+              echo "      );"
+              echo "    }"
+              echo ""
+              echo "    goldenTest("
+              echo "      'renders correctly on various devices and themes',"
+              echo "      fileName: '$file_name',"
+              echo "      builder: () => GoldenTestGroup("
+              echo "        columns: 2,"
+              echo "        children: Device.all"
+              echo "            .map("
+              echo "              (device) => GoldenTestScenario("
+              echo "                name: device.name,"
+              echo "                constraints: BoxConstraints.tight(device.size),"
+              echo "                child: Builder("
+              echo "                  builder: (context) {"
+              echo "                    return buildApp(brightness: device.brightness);"
+              echo "                  },"
+              echo "                ),"
+              echo "              ),"
+              echo "            )"
+              echo "            .toList(),"
+              echo "      ),"
+              echo "    );"
+              echo "  });"
+              echo "}"
+            } > "$test_file"
 
             echo "Generated golden test: $test_file"
           }
@@ -250,53 +250,53 @@ EOF
             mkdir -p "$(dirname "$test_file")"
 
             # Generate golden test content
-            cat > "$test_file" << EOF
-import 'package:alchemist/alchemist.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:sample_flutter2025/$relative_path';
-
-import '../../support/alchemist/device.dart';
-
-void main() {
-  group('$class_name Golden Tests', () {
-    Widget buildApp({required Brightness brightness}) {
-      return MaterialApp(
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple,
-            brightness: brightness,
-          ),
-        ),
-        debugShowCheckedModeBanner: false,
-        home: const $class_name(),
-      );
-    }
-
-    goldenTest(
-      'renders correctly on various devices and themes',
-      fileName: '$file_name',
-      builder: () => GoldenTestGroup(
-        columns: 2,
-        children: Device.all
-            .map(
-              (device) => GoldenTestScenario(
-                name: device.name,
-                constraints: BoxConstraints.tight(device.size),
-                child: Builder(
-                  builder: (context) {
-                    return buildApp(brightness: device.brightness);
-                  },
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  });
-}
-EOF
+            {
+              echo "import 'package:alchemist/alchemist.dart';"
+              echo "import 'package:flutter/material.dart';"
+              echo "import 'package:flutter_test/flutter_test.dart';"
+              echo "import 'package:sample_flutter2025/$relative_path';"
+              echo ""
+              echo "import '../../support/alchemist/device.dart';"
+              echo ""
+              echo "void main() {"
+              echo "  group('$class_name Golden Tests', () {"
+              echo "    Widget buildApp({required Brightness brightness}) {"
+              echo "      return MaterialApp("
+              echo "        theme: ThemeData("
+              echo "          useMaterial3: true,"
+              echo "          colorScheme: ColorScheme.fromSeed("
+              echo "            seedColor: Colors.deepPurple,"
+              echo "            brightness: brightness,"
+              echo "          ),"
+              echo "        ),"
+              echo "        debugShowCheckedModeBanner: false,"
+              echo "        home: const $class_name(),"
+              echo "      );"
+              echo "    }"
+              echo ""
+              echo "    goldenTest("
+              echo "      'renders correctly on various devices and themes',"
+              echo "      fileName: '$file_name',"
+              echo "      builder: () => GoldenTestGroup("
+              echo "        columns: 2,"
+              echo "        children: Device.all"
+              echo "            .map("
+              echo "              (device) => GoldenTestScenario("
+              echo "                name: device.name,"
+              echo "                constraints: BoxConstraints.tight(device.size),"
+              echo "                child: Builder("
+              echo "                  builder: (context) {"
+              echo "                    return buildApp(brightness: device.brightness);"
+              echo "                  },"
+              echo "                ),"
+              echo "              ),"
+              echo "            )"
+              echo "            .toList(),"
+              echo "      ),"
+              echo "    );"
+              echo "  });"
+              echo "}"
+            } > "$test_file"
 
             echo "Generated golden test: $test_file"
           }
