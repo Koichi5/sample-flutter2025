@@ -1,4 +1,4 @@
-name: Flutter Golden Tests
+name: Flutter Golden Tests Template
 
 on:
   pull_request:
