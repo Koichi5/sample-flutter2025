@@ -11,9 +11,7 @@ Future<void> loadAppFonts() async {
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await loadAppFonts();
   return AlchemistConfig.runWithConfig(
-    config: const AlchemistConfig(
-      platformGoldensConfig: PlatformGoldensConfig(enabled: true),
-    ),
+    config: const AlchemistConfig(),
     run: testMain,
   );
 }
