@@ -265,7 +265,7 @@ jobs:
           ref: ${{ github.base_ref }}
           clean: false
 
-                  - name: Update Dependencies (Base Branch)
+      - name: Update Dependencies (Base Branch)
         run: |
           # Clear ALL cache and dependencies to force fresh download
           echo "=== Clearing all caches (Base Branch) ==="
