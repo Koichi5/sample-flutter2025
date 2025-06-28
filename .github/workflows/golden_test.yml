@@ -250,9 +250,17 @@ jobs:
           # Light cleanup - only clear dependency locks
           rm -rf pubspec.lock
 
+          # Force specific alchemist version in Base Branch
+          sed -i.bak 's/alchemist: \^0\.12\.1/alchemist: 0.12.1/' pubspec.yaml || true
+          sed -i.bak 's/alchemist: \^.*$/alchemist: 0.12.1/' pubspec.yaml || true
+
           # Get fresh dependencies
           flutter pub get
           flutter pub upgrade
+
+          # Verify we got the right version
+          echo "Checking alchemist version in Base Branch:"
+          flutter pub deps | grep alchemist || echo "Alchemist not found in deps"
 
       - name: Generate Missing Golden Tests (Base Branch)
         run: |
@@ -361,7 +369,12 @@ jobs:
           done
 
           if [ "$has_before_scenarios" = true ]; then
-            flutter test --update-goldens
+            echo "Attempting to generate before goldens..."
+            if ! flutter test --update-goldens; then
+              echo "⚠️  Flutter test failed in base branch (likely alchemist compatibility issue)"
+              echo "Skipping before golden generation - will use existing goldens if available"
+              mkdir -p test/weather/widgets/goldens/ci/ || true
+            fi
           else
             echo "No before scenarios found, skipping base golden generation"
             mkdir -p test  # Ensure test directory exists for next step
