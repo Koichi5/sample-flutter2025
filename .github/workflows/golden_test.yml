@@ -110,7 +110,9 @@ jobs:
             SCENARIOS=$(echo "$SCENARIOS" | jq --arg file "$file" --arg scenario "$scenario" --arg test_file "$test_file" '. + {($file): {scenario: $scenario, test_file: $test_file}}')
           done
 
-          echo "scenarios=$SCENARIOS" >> $GITHUB_OUTPUT
+          # Output scenarios as compact JSON (single line)
+          SCENARIOS_COMPACT=$(echo "$SCENARIOS" | jq -c .)
+          echo "scenarios=$SCENARIOS_COMPACT" >> $GITHUB_OUTPUT
           echo "Detected scenarios:"
           echo "$SCENARIOS" | jq .
 
@@ -212,7 +214,11 @@ jobs:
       - name: Organize "After" Goldens
         run: |
           mkdir -p .goldens/after
-          find test -type f -path "*/goldens/ci/*.png" -exec cp --parents {} .goldens/after/ \;
+          find test -type f -path "*/goldens/ci/*.png" | while read -r file; do
+            target_dir=".goldens/after/$(dirname "$file")"
+            mkdir -p "$target_dir"
+            cp "$file" "$target_dir/"
+          done
 
       - name: Checkout Base Branch
         uses: actions/checkout@v3
@@ -336,7 +342,13 @@ jobs:
       - name: Organize "Before" Goldens
         run: |
           mkdir -p .goldens/before
-          find test -type f -path "*/goldens/ci/*.png" -exec cp --parents {} .goldens/before/ \; 2>/dev/null || true
+          find test -type f -path "*/goldens/ci/*.png" 2>/dev/null | while read -r file; do
+            if [ -f "$file" ]; then
+              target_dir=".goldens/before/$(dirname "$file")"
+              mkdir -p "$target_dir"
+              cp "$file" "$target_dir/"
+            fi
+          done || true
 
       - name: Restore Head Branch Files
         run: |
