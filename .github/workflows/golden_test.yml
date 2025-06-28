@@ -31,7 +31,7 @@ jobs:
           flutter-version: "3.32.0"
           cache: false
 
-                        - name: Update Dependencies
+      - name: Update Dependencies
         run: |
           # Clear ALL cache and dependencies to force fresh download
           echo "=== Clearing all caches ==="
