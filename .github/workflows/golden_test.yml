@@ -209,7 +209,13 @@ jobs:
           done
 
       - name: Generate "After" Goldens (Head Branch)
-        run: flutter test --update-goldens
+        run: |
+          SCENARIOS='${{ steps.analyze_tests.outputs.scenarios }}'
+          if [ "$SCENARIOS" != "{}" ]; then
+            flutter test --update-goldens
+          else
+            echo "No scenarios to process, skipping golden test generation"
+          fi
 
       - name: Organize "After" Goldens
         run: |
