@@ -28,41 +28,21 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.32.0"
-          cache: false
+          flutter-version: "3.31.0"
+          cache: true
 
-      - name: Update Dependencies
+                  - name: Update Dependencies
         run: |
-          # Clear ALL cache and dependencies to force fresh download
-          echo "=== Clearing all caches ==="
-          rm -rf .dart_tool
+          # Light cleanup - only clear dependency locks
           rm -rf pubspec.lock
-          rm -rf ~/.pub-cache || true
-          rm -rf $PUB_CACHE || true
-          rm -rf $FLUTTER_ROOT/.pub-cache || true
-          flutter clean
 
-          # Clear Flutter's global cache too
-          flutter doctor --android-licenses > /dev/null 2>&1 || true
-          flutter config --clear-features || true
+          # Get fresh dependencies
+          flutter pub get
+          flutter pub upgrade
 
-          # Verify pubspec.lock is deleted
-          echo "=== Verifying clean state ==="
-          ls -la pubspec.lock 2>/dev/null && echo "WARNING: pubspec.lock still exists" || echo "pubspec.lock successfully removed"
-
-          # Force fresh pub get without any cache
-          echo "=== Getting dependencies fresh ==="
-          PUB_CACHE="" flutter pub get --no-precompile
-          echo "=== Upgrading to latest versions ==="
-          PUB_CACHE="" flutter pub upgrade --no-precompile
-
-          # Verify alchemist version explicitly
-          echo "=== Alchemist Version Check ==="
+          # Verify alchemist version (should be 0.12.1 from pubspec.yaml)
+          echo "Checking alchemist version:"
           flutter pub deps | grep alchemist || echo "Alchemist not found in deps"
-
-          # Show pubspec.lock content for alchemist
-          echo "=== Alchemist in pubspec.lock ==="
-          grep -A3 -B1 "alchemist:" pubspec.lock || echo "Alchemist not in pubspec.lock"
 
       - name: Detect Changed View Files
         id: detect_changes
@@ -265,30 +245,14 @@ jobs:
           ref: ${{ github.base_ref }}
           clean: false
 
-      - name: Update Dependencies (Base Branch)
+            - name: Update Dependencies (Base Branch)
         run: |
-          # Clear ALL cache and dependencies to force fresh download
-          echo "=== Clearing all caches (Base Branch) ==="
-          rm -rf .dart_tool
+          # Light cleanup - only clear dependency locks
           rm -rf pubspec.lock
-          rm -rf ~/.pub-cache || true
-          rm -rf $PUB_CACHE || true
-          rm -rf $FLUTTER_ROOT/.pub-cache || true
-          flutter clean
 
-          # Clear Flutter's global cache too
-          flutter doctor --android-licenses > /dev/null 2>&1 || true
-          flutter config --clear-features || true
-
-          # Verify pubspec.lock is deleted
-          echo "=== Verifying clean state (Base Branch) ==="
-          ls -la pubspec.lock 2>/dev/null && echo "WARNING: pubspec.lock still exists" || echo "pubspec.lock successfully removed"
-
-          # Force fresh pub get without any cache
-          echo "=== Getting dependencies fresh (Base Branch) ==="
-          PUB_CACHE="" flutter pub get --no-precompile
-          echo "=== Upgrading to latest versions (Base Branch) ==="
-          PUB_CACHE="" flutter pub upgrade --no-precompile
+          # Get fresh dependencies
+          flutter pub get
+          flutter pub upgrade
 
       - name: Generate Missing Golden Tests (Base Branch)
         run: |
