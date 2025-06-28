@@ -28,13 +28,21 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.32.0"
-          cache: true
+          flutter-version: "3.31.0"
+          cache: false
 
       - name: Update Dependencies
         run: |
-          flutter pub upgrade
+          # Clear pub cache and dependencies to force fresh download
+          rm -rf .dart_tool
+          rm -rf pubspec.lock
+          flutter clean
           flutter pub get
+          flutter pub upgrade
+
+          # Verify alchemist version
+          echo "Checking alchemist version:"
+          flutter pub deps | grep alchemist || echo "Alchemist not found in deps"
 
       - name: Detect Changed View Files
         id: detect_changes
@@ -236,6 +244,15 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           clean: false
+
+      - name: Update Dependencies (Base Branch)
+        run: |
+          # Clear pub cache and dependencies to force fresh download
+          rm -rf .dart_tool
+          rm -rf pubspec.lock
+          flutter clean
+          flutter pub get
+          flutter pub upgrade
 
       - name: Generate Missing Golden Tests (Base Branch)
         run: |
