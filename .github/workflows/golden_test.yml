@@ -123,56 +123,38 @@ jobs:
             exit 0
           fi
 
-          # Create golden tests for files that need them
-          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
-            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
-            test_file=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].test_file')
+          # Function to generate golden test
+          generate_golden_test() {
+            local dart_file="$1"
+            local test_file="$2"
 
-            if [ "$scenario" = "no_golden_test" ] || [ "$scenario" = "new_view" ]; then
-              echo "Generating golden test for $file"
+            # Extract class name from dart file
+            class_name=$(grep -E "class\s+\w+\s+extends\s+(StatelessWidget|StatefulWidget)" "$dart_file" | head -1 | sed -E 's/.*class\s+(\w+)\s+extends.*/\1/')
 
-              # Create test directory if it doesn't exist
-              mkdir -p "$(dirname "$test_file")"
+            if [ -z "$class_name" ]; then
+              echo "Could not find widget class in $dart_file"
+              return 1
+            fi
 
-              # Generate golden test content
-              cat > generate_test.py << 'EOF'
-import sys
-import os
-import re
+            # Extract file name and relative path
+            file_name=$(basename "$dart_file" .dart)
+            relative_path=$(echo "$dart_file" | sed 's|lib/||')
 
-file_path = sys.argv[1]
-test_file_path = sys.argv[2]
+            # Create test directory if it doesn't exist
+            mkdir -p "$(dirname "$test_file")"
 
-# Extract class name from dart file
-with open(file_path, 'r') as f:
-    content = f.read()
-
-# Find the main widget class
-class_match = re.search(r'class\s+(\w+)\s+extends\s+StatelessWidget', content)
-if not class_match:
-    class_match = re.search(r'class\s+(\w+)\s+extends\s+StatefulWidget', content)
-
-if not class_match:
-    print(f"Could not find widget class in {file_path}")
-    sys.exit(1)
-
-class_name = class_match.group(1)
-file_name = os.path.basename(file_path).replace('.dart', '')
-
-# Extract relative import path
-relative_path = file_path.replace('lib/', '')
-
-# Generate test content using string formatting to avoid brace conflicts
-test_content = """import 'package:alchemist/alchemist.dart';
+            # Generate golden test content
+            cat > "$test_file" << EOF
+import 'package:alchemist/alchemist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sample_flutter2025/{relative_path}';
+import 'package:sample_flutter2025/$relative_path';
 
 import '../../support/alchemist/device.dart';
 
-void main() {{{{
-  group('{class_name} Golden Tests', () {{{{
-    Widget buildApp({{{{required Brightness brightness}}}}) {{{{
+void main() {
+  group('$class_name Golden Tests', () {
+    Widget buildApp({required Brightness brightness}) {
       return MaterialApp(
         theme: ThemeData(
           useMaterial3: true,
@@ -182,13 +164,13 @@ void main() {{{{
           ),
         ),
         debugShowCheckedModeBanner: false,
-        home: const {class_name}(),
+        home: const $class_name(),
       );
-    }}}}
+    }
 
     goldenTest(
       'renders correctly on various devices and themes',
-      fileName: '{file_name}',
+      fileName: '$file_name',
       builder: () => GoldenTestGroup(
         columns: 2,
         children: Device.all
@@ -197,30 +179,30 @@ void main() {{{{
                 name: device.name,
                 constraints: BoxConstraints.tight(device.size),
                 child: Builder(
-                  builder: (context) {{{{
+                  builder: (context) {
                     return buildApp(brightness: device.brightness);
-                  }}}},
+                  },
                 ),
               ),
             )
             .toList(),
       ),
     );
-  }}}});
-}}}}
-""".format(
-    relative_path=relative_path,
-    class_name=class_name,
-    file_name=file_name
-)
-
-with open(test_file_path, 'w') as f:
-    f.write(test_content)
-
-print(f"Generated golden test: {test_file_path}")
+  });
+}
 EOF
-              python3 generate_test.py "$file" "$test_file"
-              rm generate_test.py
+
+            echo "Generated golden test: $test_file"
+          }
+
+          # Create golden tests for files that need them
+          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
+            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
+            test_file=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].test_file')
+
+            if [ "$scenario" = "no_golden_test" ] || [ "$scenario" = "new_view" ]; then
+              echo "Generating golden test for $file"
+              generate_golden_test "$file" "$test_file"
             fi
           done
 
@@ -247,56 +229,38 @@ EOF
             exit 0
           fi
 
-          # Create golden tests for files that existed in base but didn't have tests
-          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
-            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
-            test_file=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].test_file')
+          # Function to generate golden test (same as head branch)
+          generate_golden_test() {
+            local dart_file="$1"
+            local test_file="$2"
 
-            if [ "$scenario" = "no_golden_test" ] && [ -f "$file" ]; then
-              echo "Generating golden test for base version of $file"
+            # Extract class name from dart file
+            class_name=$(grep -E "class\s+\w+\s+extends\s+(StatelessWidget|StatefulWidget)" "$dart_file" | head -1 | sed -E 's/.*class\s+(\w+)\s+extends.*/\1/')
 
-              # Create test directory if it doesn't exist
-              mkdir -p "$(dirname "$test_file")"
+            if [ -z "$class_name" ]; then
+              echo "Could not find widget class in $dart_file"
+              return 1
+            fi
 
-              # Generate golden test content (same as head branch)
-              cat > generate_test.py << 'EOF'
-import sys
-import os
-import re
+            # Extract file name and relative path
+            file_name=$(basename "$dart_file" .dart)
+            relative_path=$(echo "$dart_file" | sed 's|lib/||')
 
-file_path = sys.argv[1]
-test_file_path = sys.argv[2]
+            # Create test directory if it doesn't exist
+            mkdir -p "$(dirname "$test_file")"
 
-# Extract class name from dart file
-with open(file_path, 'r') as f:
-    content = f.read()
-
-# Find the main widget class
-class_match = re.search(r'class\s+(\w+)\s+extends\s+StatelessWidget', content)
-if not class_match:
-    class_match = re.search(r'class\s+(\w+)\s+extends\s+StatefulWidget', content)
-
-if not class_match:
-    print(f"Could not find widget class in {file_path}")
-    sys.exit(1)
-
-class_name = class_match.group(1)
-file_name = os.path.basename(file_path).replace('.dart', '')
-
-# Extract relative import path
-relative_path = file_path.replace('lib/', '')
-
-# Generate test content using string formatting to avoid brace conflicts
-test_content = """import 'package:alchemist/alchemist.dart';
+            # Generate golden test content
+            cat > "$test_file" << EOF
+import 'package:alchemist/alchemist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sample_flutter2025/{relative_path}';
+import 'package:sample_flutter2025/$relative_path';
 
 import '../../support/alchemist/device.dart';
 
-void main() {{{{
-  group('{class_name} Golden Tests', () {{{{
-    Widget buildApp({{{{required Brightness brightness}}}}) {{{{
+void main() {
+  group('$class_name Golden Tests', () {
+    Widget buildApp({required Brightness brightness}) {
       return MaterialApp(
         theme: ThemeData(
           useMaterial3: true,
@@ -306,13 +270,13 @@ void main() {{{{
           ),
         ),
         debugShowCheckedModeBanner: false,
-        home: const {class_name}(),
+        home: const $class_name(),
       );
-    }}}}
+    }
 
     goldenTest(
       'renders correctly on various devices and themes',
-      fileName: '{file_name}',
+      fileName: '$file_name',
       builder: () => GoldenTestGroup(
         columns: 2,
         children: Device.all
@@ -321,30 +285,30 @@ void main() {{{{
                 name: device.name,
                 constraints: BoxConstraints.tight(device.size),
                 child: Builder(
-                  builder: (context) {{{{
+                  builder: (context) {
                     return buildApp(brightness: device.brightness);
-                  }}}},
+                  },
                 ),
               ),
             )
             .toList(),
       ),
     );
-  }}}});
-}}}}
-""".format(
-    relative_path=relative_path,
-    class_name=class_name,
-    file_name=file_name
-)
-
-with open(test_file_path, 'w') as f:
-    f.write(test_content)
-
-print(f"Generated golden test: {test_file_path}")
+  });
+}
 EOF
-              python3 generate_test.py "$file" "$test_file"
-              rm generate_test.py
+
+            echo "Generated golden test: $test_file"
+          }
+
+          # Create golden tests for files that existed in base but didn't have tests
+          for file in $(echo "$SCENARIOS" | jq -r 'keys[]'); do
+            scenario=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].scenario')
+            test_file=$(echo "$SCENARIOS" | jq -r --arg file "$file" '.[$file].test_file')
+
+            if [ "$scenario" = "no_golden_test" ] && [ -f "$file" ]; then
+              echo "Generating golden test for base version of $file"
+              generate_golden_test "$file" "$test_file"
             fi
           done
 
