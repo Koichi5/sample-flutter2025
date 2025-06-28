@@ -29,7 +29,7 @@ dev_dependencies:
   freezed: ^2.5.2
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.0
-  alchemist: ^0.12.1
+  alchemist: 0.12.1
 
 flutter:
   uses-material-design: true
