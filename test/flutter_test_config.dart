@@ -11,8 +11,13 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await loadAppFonts();
   return AlchemistConfig.runWithConfig(
     config: const AlchemistConfig(
-      ciGoldensConfig: CiGoldensConfig(obscureText: false, renderShadows: true),
-      platformGoldensConfig: PlatformGoldensConfig(enabled: false),
+      ciGoldensConfig: CiGoldensConfig(
+        obscureText: false,
+        renderShadows: true,
+      ),
+      platformGoldensConfig: PlatformGoldensConfig(
+        enabled: false,
+      ),
     ),
     run: testMain,
   );
