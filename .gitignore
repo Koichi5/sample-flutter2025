@@ -44,4 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Golden test failures (temporary debug files)
+**/failures/
+
 .github/workflows/template.yaml
