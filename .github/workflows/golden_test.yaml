@@ -31,134 +31,172 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Run golden tests (PR version) - Check first
-        id: golden_test_pr
+      - name: Run golden tests and check for changes
+        id: golden_test
         run: |
-          # まず通常のテストを実行して、Golden画像の差異をチェック
-          if flutter test --reporter=json > test_results_pr.json 2>&1; then
+          # Clean up any existing failure images
+          find test -name "*_masterImage.png" -delete 2>/dev/null || true
+          find test -name "*_testImage.png" -delete 2>/dev/null || true
+
+          # Run golden tests
+          if flutter test --tags golden --reporter=json > test_results.json 2>&1; then
             echo "golden_test_passed=true" >> $GITHUB_OUTPUT
+            echo "✅ All golden tests passed"
           else
             echo "golden_test_passed=false" >> $GITHUB_OUTPUT
-            # テストが失敗した場合、新しいGolden画像を生成
-            flutter test --update-goldens
+            echo "⚠️ Golden tests failed - comparing images"
           fi
 
-      - name: Store current golden files
+      - name: Check for new golden images (first-time generation)
+        id: check_new_goldens
         run: |
-          mkdir -p /tmp/golden_after
-          find test -name "*.png" -path "*/goldens/ci/*" -exec cp {} /tmp/golden_after/ \;
+          NEW_GOLDENS_FOUND=false
+          NEW_GOLDENS_LIST=""
 
-      - name: Checkout base branch
-        run: |
-          git checkout ${{ github.event.pull_request.base.sha }}
+          # Check if there are any golden images that weren't in the base branch
+          git fetch origin ${{ github.event.pull_request.base.ref }}
 
-      - name: Get dependencies (base)
-        run: flutter pub get
+          # Find golden images in current branch
+          if find test -name "*.png" -path "*/goldens/ci/*" | while read -r golden_file; do
+            # Convert to relative path
+            rel_path=${golden_file#./}
 
-      - name: Run golden tests (base version) - Check first
-        id: golden_test_base
-        run: |
-          # ベースブランチでも同様にテストをチェック
-          if flutter test --reporter=json > test_results_base.json 2>&1; then
-            echo "base_golden_test_passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "base_golden_test_passed=false" >> $GITHUB_OUTPUT
-            # ベースブランチでテストが失敗する場合は、現在のGolden画像を生成
-            flutter test --update-goldens
+            # Check if this file exists in base branch
+            if ! git cat-file -e origin/${{ github.event.pull_request.base.ref }}:$rel_path 2>/dev/null; then
+              echo "true" > /tmp/new_golden_found
+              echo "$rel_path" >> /tmp/new_goldens_list
+              echo "🆕 New golden image found: $rel_path"
+            fi
+          done; then
+            if [[ -f "/tmp/new_golden_found" ]]; then
+              NEW_GOLDENS_FOUND=true
+              NEW_GOLDENS_LIST=$(cat /tmp/new_goldens_list 2>/dev/null || echo "")
+            fi
           fi
 
-      - name: Store base golden files
-        run: |
-          mkdir -p /tmp/golden_before
-          find test -name "*.png" -path "*/goldens/ci/*" -exec cp {} /tmp/golden_before/ \;
+          echo "new_goldens_found=$NEW_GOLDENS_FOUND" >> $GITHUB_OUTPUT
+          echo "new_goldens_list<<EOF" >> $GITHUB_OUTPUT
+          echo "$NEW_GOLDENS_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Compare golden files and generate comment
-        id: compare
+      - name: Check for failure images (Before/After comparison)
+        id: check_failures
+        run: |
+          FAILURE_IMAGES_FOUND=false
+          FAILURE_PAIRS=""
+
+          # Look for failure images in test directories
+          if find test -name "*_masterImage.png" | while read -r master_file; do
+            # Extract the base name and find corresponding test image
+            base_name=${master_file%_masterImage.png}
+            test_file="${base_name}_testImage.png"
+
+            if [[ -f "$test_file" ]]; then
+              echo "true" > /tmp/failure_found
+              # Extract just the filename without path for cleaner display
+              master_filename=$(basename "$master_file")
+              test_filename=$(basename "$test_file")
+              widget_name=${master_filename%_masterImage.png}
+
+              echo "$widget_name|$master_file|$test_file" >> /tmp/failure_pairs
+              echo "📸 Failure pair found: $widget_name"
+            fi
+          done; then
+            if [[ -f "/tmp/failure_found" ]]; then
+              FAILURE_IMAGES_FOUND=true
+              FAILURE_PAIRS=$(cat /tmp/failure_pairs 2>/dev/null || echo "")
+            fi
+          fi
+
+          echo "failure_images_found=$FAILURE_IMAGES_FOUND" >> $GITHUB_OUTPUT
+          echo "failure_pairs<<EOF" >> $GITHUB_OUTPUT
+          echo "$FAILURE_PAIRS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Generate PR comment
+        id: generate_comment
         run: |
           COMMENT_BODY="## 🎨 Golden Test Results\n\n"
 
-          # テスト結果の情報を追加
-          if [[ "${{ steps.golden_test_pr.outputs.golden_test_passed }}" == "true" ]]; then
-            COMMENT_BODY="${COMMENT_BODY}✅ **PR Branch**: All golden tests passed\n"
+          # Test execution status
+          if [[ "${{ steps.golden_test.outputs.golden_test_passed }}" == "true" ]]; then
+            COMMENT_BODY="${COMMENT_BODY}✅ **Golden Tests**: All tests passed\n\n"
           else
-            COMMENT_BODY="${COMMENT_BODY}⚠️ **PR Branch**: Golden tests failed - new images generated\n"
-          fi
-
-          if [[ "${{ steps.golden_test_base.outputs.base_golden_test_passed }}" == "true" ]]; then
-            COMMENT_BODY="${COMMENT_BODY}✅ **Base Branch**: All golden tests passed\n\n"
-          else
-            COMMENT_BODY="${COMMENT_BODY}⚠️ **Base Branch**: Golden tests failed - images regenerated\n\n"
+            COMMENT_BODY="${COMMENT_BODY}⚠️ **Golden Tests**: Some tests failed - image comparison below\n\n"
           fi
 
           HAS_CHANGES=false
 
-          # Create directories for comparison images
-          mkdir -p /tmp/comparison
+          # Handle new golden images (first-time)
+          if [[ "${{ steps.check_new_goldens.outputs.new_goldens_found }}" == "true" ]]; then
+            HAS_CHANGES=true
+            COMMENT_BODY="${COMMENT_BODY}### ✨ New Golden Images\n\n"
 
-          # Compare each golden file
-          for after_file in /tmp/golden_after/*.png; do
-            if [[ -f "$after_file" ]]; then
-              filename=$(basename "$after_file")
-              before_file="/tmp/golden_before/$filename"
-
-              if [[ -f "$before_file" ]]; then
-                # Both files exist, check if they're different
-                if ! cmp -s "$before_file" "$after_file"; then
-                  HAS_CHANGES=true
-                  COMMENT_BODY="${COMMENT_BODY}### 📸 \`$filename\` - Modified\n\n"
-                  COMMENT_BODY="${COMMENT_BODY}| Before | After |\n"
-                  COMMENT_BODY="${COMMENT_BODY}|---------|--------|\n"
-                  COMMENT_BODY="${COMMENT_BODY}| ![Before](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.base.sha }}/test/weather/widgets/goldens/ci/$filename) | ![After](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.head.sha }}/test/weather/widgets/goldens/ci/$filename) |\n\n"
-                fi
-              else
-                # New file
-                HAS_CHANGES=true
-                COMMENT_BODY="${COMMENT_BODY}### ✨ \`$filename\` - New\n\n"
-                COMMENT_BODY="${COMMENT_BODY}![New Golden](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.head.sha }}/test/weather/widgets/goldens/ci/$filename)\n\n"
+            while IFS= read -r golden_path; do
+              if [[ -n "$golden_path" ]]; then
+                filename=$(basename "$golden_path")
+                widget_name=${filename%.png}
+                COMMENT_BODY="${COMMENT_BODY}#### 🆕 \`$widget_name\`\n\n"
+                COMMENT_BODY="${COMMENT_BODY}![New Golden Image](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.head.sha }}/$golden_path)\n\n"
               fi
-            fi
-          done
-
-          # Check for deleted files
-          for before_file in /tmp/golden_before/*.png; do
-            if [[ -f "$before_file" ]]; then
-              filename=$(basename "$before_file")
-              after_file="/tmp/golden_after/$filename"
-
-              if [[ ! -f "$after_file" ]]; then
-                HAS_CHANGES=true
-                COMMENT_BODY="${COMMENT_BODY}### 🗑️ \`$filename\` - Deleted\n\n"
-                COMMENT_BODY="${COMMENT_BODY}![Deleted Golden](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.base.sha }}/test/weather/widgets/goldens/ci/$filename)\n\n"
-              fi
-            fi
-          done
-
-          if [[ "$HAS_CHANGES" == "false" ]]; then
-            COMMENT_BODY="${COMMENT_BODY}✅ No changes to golden test images detected.\n"
+            done <<< "${{ steps.check_new_goldens.outputs.new_goldens_list }}"
           fi
 
-          # Save comment body to file for GitHub Actions
+          # Handle failure images (Before/After comparison)
+          if [[ "${{ steps.check_failures.outputs.failure_images_found }}" == "true" ]]; then
+            HAS_CHANGES=true
+            COMMENT_BODY="${COMMENT_BODY}### 📸 Golden Image Changes (Before/After)\n\n"
+
+            COMMENT_BODY="${COMMENT_BODY}The following widgets have visual changes detected:\n\n"
+
+            while IFS='|' read -r widget_name master_file test_file; do
+              if [[ -n "$widget_name" ]]; then
+                COMMENT_BODY="${COMMENT_BODY}#### 🔄 \`$widget_name\`\n\n"
+                COMMENT_BODY="${COMMENT_BODY}- **Before Image**: \`$(basename "$master_file")\`\n"
+                COMMENT_BODY="${COMMENT_BODY}- **After Image**: \`$(basename "$test_file")\`\n\n"
+                COMMENT_BODY="${COMMENT_BODY}📎 **Download images**: Check the \`golden-test-failures\` artifact below to view the comparison images.\n\n"
+              fi
+            done <<< "${{ steps.check_failures.outputs.failure_pairs }}"
+
+            COMMENT_BODY="${COMMENT_BODY}---\n\n"
+            COMMENT_BODY="${COMMENT_BODY}💡 **How to view the images**:\n"
+            COMMENT_BODY="${COMMENT_BODY}1. Scroll down to the \"Artifacts\" section in this workflow run\n"
+            COMMENT_BODY="${COMMENT_BODY}2. Download the \`golden-test-failures\` artifact\n"
+            COMMENT_BODY="${COMMENT_BODY}3. Extract the zip file to view Before (\`*_masterImage.png\`) and After (\`*_testImage.png\`) images\n\n"
+          fi
+
+          # If no changes detected
+          if [[ "$HAS_CHANGES" == "false" ]]; then
+            COMMENT_BODY="${COMMENT_BODY}✅ No golden image changes detected.\n"
+          fi
+
+          # Add workflow run link for easy access to artifacts
+          if [[ "$HAS_CHANGES" == "true" ]]; then
+            COMMENT_BODY="${COMMENT_BODY}🔗 **Workflow Run**: [View artifacts and details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n"
+          fi
+
+          # Save comment body
           echo "$COMMENT_BODY" > /tmp/comment_body.md
           echo "has_changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
 
-      - name: Checkout PR branch for updated goldens
-        run: |
-          git checkout ${{ github.event.pull_request.head.sha }}
+      - name: Upload failure images as artifacts
+        if: steps.check_failures.outputs.failure_images_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-test-failures
+          path: |
+            test/**/*_masterImage.png
+            test/**/*_testImage.png
+          retention-days: 7
 
-      - name: Update golden files in PR (if needed)
-        if: steps.compare.outputs.has_changes == 'true'
-        run: |
-          # Copy the updated golden files back
-          cp -r /tmp/golden_after/* test/weather/widgets/goldens/ci/ 2>/dev/null || true
-
-          # Check if there are changes to commit
-          if ! git diff --quiet test/weather/widgets/goldens/ci/; then
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            git add test/weather/widgets/goldens/ci/
-            git commit -m "Update golden test images" || true
-            git push origin HEAD:${{ github.event.pull_request.head.ref }} || true
-          fi
+      - name: Upload new golden images as artifacts
+        if: steps.check_new_goldens.outputs.new_goldens_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-golden-images
+          path: |
+            test/**/goldens/ci/*.png
+          retention-days: 7
 
       - name: Find existing comment
         id: find_comment
@@ -169,19 +207,10 @@ jobs:
           body-includes: "🎨 Golden Test Results"
 
       - name: Create or update comment
+        if: steps.generate_comment.outputs.has_changes == 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.find_comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           body-path: /tmp/comment_body.md
           edit-mode: replace
-
-      - name: Upload golden comparison artifacts
-        if: steps.compare.outputs.has_changes == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: golden-comparison
-          path: |
-            /tmp/golden_before/
-            /tmp/golden_after/
-          retention-days: 7
