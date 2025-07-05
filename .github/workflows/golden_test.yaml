@@ -2,7 +2,7 @@ name: Golden Test PR Check
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "lib/**/*.dart"
       - "test/**/*_golden_test.dart"
@@ -12,6 +12,8 @@ on:
 jobs:
   golden-test-check:
     runs-on: ubuntu-latest
+    # Only run if PR has 'golden_test' label
+    if: contains(github.event.pull_request.labels.*.name, 'golden_test')
     permissions:
       contents: read
       pull-requests: write
@@ -92,6 +94,7 @@ jobs:
         id: generate_comment
         run: |
           COMMENT_BODY="## 🎨 Golden Test Results\n\n"
+          COMMENT_BODY="${COMMENT_BODY}> This automated check runs when the \`golden_test\` label is manually applied to PRs with UI-related changes.\n\n"
 
           HAS_CHANGES=false
 
