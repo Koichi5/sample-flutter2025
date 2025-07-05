@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sample_flutter2025/components/custom_dialog.dart';
 
-import '../support/alchemist/device.dart';
+import '../../support/alchemist/device.dart';
 
 void main() {
   group('CustomDialog Golden Tests', () {

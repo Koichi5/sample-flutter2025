@@ -1,32 +1,29 @@
 import 'package:alchemist/alchemist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sample_flutter2025/main.dart';
+import 'package:sample_flutter2025/components/custom_dialog.dart';
 
-import 'support/alchemist/device.dart';
+import '../../support/alchemist/device.dart';
 
 void main() {
-  group('HomePage Golden Tests', () {
+  group('CustomDialogDemo Golden Tests', () {
     Widget buildApp({required Brightness brightness}) {
-      return ProviderScope(
-        child: MaterialApp(
-          theme: ThemeData(
-            useMaterial3: true,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.deepPurple,
-              brightness: brightness,
-            ),
+      return MaterialApp(
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.deepPurple,
+            brightness: brightness,
           ),
-          debugShowCheckedModeBanner: false,
-          home: const HomePage(),
         ),
+        debugShowCheckedModeBanner: false,
+        home: const CustomDialogDemo(),
       );
     }
 
     goldenTest(
-      'renders correctly with custom dialog demo card',
-      fileName: 'home_page_with_dialog_demo',
+      'renders correctly on various devices and themes',
+      fileName: 'custom_dialog_demo',
       builder:
           () => GoldenTestGroup(
             columns: 2,

@@ -26,6 +26,50 @@ dart tools/golden_test/enhanced_golden_test.dart create CustomButton lib/compone
 dart tools/golden_test/enhanced_golden_test.dart both CustomButton lib/components/custom_button.dart
 ```
 
+## 📁 テストディレクトリ構造
+
+### 基本構造
+
+```
+test/
+├── lib/                    # 実装コードと同じ構造
+│   ├── main_test.dart      # lib/main.dart のテスト
+│   ├── components/         # lib/components/ のテスト
+│   │   ├── custom_button_golden_test.dart
+│   │   └── goldens/
+│   │       └── ci/
+│   └── weather/            # lib/weather/ のテスト
+│       └── widgets/
+│           ├── weather_icon_golden_test.dart
+│           └── goldens/
+│               └── ci/
+├── support/               # テスト共通ファイル
+│   └── alchemist/
+│       └── device.dart
+└── flutter_test_config.dart
+```
+
+### 相対パス規則
+
+- `test/lib/` 配下のテストから `test/support/` への相対パス: `../support/`
+- `test/lib/components/` 配下のテストから `test/support/` への相対パス: `../../support/`
+- `test/lib/weather/widgets/` 配下のテストから `test/support/` への相対パス: `../../../support/`
+
+### 新しいテストファイル作成時のルール
+
+**🎯 AI エージェントが従うべき原則**:
+
+1. **ディレクトリ構造の維持**: 実装コード（`lib/`）と同じ構造を `test/lib/` 配下に作成
+2. **ファイル配置例**:
+   ```
+   lib/main.dart                    → test/lib/main_golden_test.dart
+   lib/components/button.dart       → test/lib/components/button_golden_test.dart
+   lib/feature/widgets/item.dart    → test/lib/feature/widgets/item_golden_test.dart
+   lib/pages/home/home_page.dart    → test/lib/pages/home/home_page_golden_test.dart
+   ```
+3. **必要なディレクトリの自動作成**: テストファイルを作成する前に、必要なディレクトリが存在しない場合は自動作成
+4. **相対パスの自動計算**: ファイルの配置場所に応じて、適切な相対パスで device.dart をインポート
+
 ## 🤖 AI エージェントコマンド例
 
 ### ユーザーからの指示パターン
@@ -232,7 +276,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sample_flutter2025/components/custom_button.dart';
 
-import '../../../support/alchemist/device.dart';
+import '../../support/alchemist/device.dart'; // test/lib/components/ から test/support/ への相対パス
 
 void main() {
   group('CustomButton Golden Tests', () {
@@ -311,6 +355,12 @@ void main() {
 
 4. **Device not found**: Device.all が未定義
    → 正しい相対パスで device.dart を import
+
+   **相対パスの例**:
+
+   - `test/lib/` から: `import '../support/alchemist/device.dart';`
+   - `test/lib/components/` から: `import '../../support/alchemist/device.dart';`
+   - `test/lib/weather/widgets/` から: `import '../../../support/alchemist/device.dart';`
 
 5. **RenderFlex overflowed**: レンダリングオーバーフロー
    → **⚠️ テスト実行を停止し、開発者に報告**

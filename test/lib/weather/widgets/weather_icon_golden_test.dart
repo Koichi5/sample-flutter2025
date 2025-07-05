@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sample_flutter2025/weather/widgets/weather_icon.dart';
 
-
-import '../../support/alchemist/device.dart';
+import '../../../support/alchemist/device.dart';
 
 void main() {
   group('WeatherIcon Golden Tests', () {
@@ -27,22 +26,24 @@ void main() {
     goldenTest(
       'renders correctly on various devices and themes',
       fileName: 'weather_icon',
-      builder: () => GoldenTestGroup(
-        columns: 2,
-        children: Device.all
-            .map(
-              (device) => GoldenTestScenario(
-                name: device.name,
-                constraints: BoxConstraints.tight(device.size),
-                child: Builder(
-                  builder: (context) {
-                    return buildApp(brightness: device.brightness);
-                  },
-                ),
-              ),
-            )
-            .toList(),
-      ),
+      builder:
+          () => GoldenTestGroup(
+            columns: 2,
+            children:
+                Device.all
+                    .map(
+                      (device) => GoldenTestScenario(
+                        name: device.name,
+                        constraints: BoxConstraints.tight(device.size),
+                        child: Builder(
+                          builder: (context) {
+                            return buildApp(brightness: device.brightness);
+                          },
+                        ),
+                      ),
+                    )
+                    .toList(),
+          ),
     );
   });
 }
