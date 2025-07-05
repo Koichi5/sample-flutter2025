@@ -1,79 +1,109 @@
 {
   "request_type": "golden_test_mock_generation",
-  "timestamp": "2025-07-05T13:21:01.723658",
+  "timestamp": "2025-07-05T13:34:08.840053",
   "analysis_result": {
-    "widget_name": "CustomText",
-    "widget_path": "lib/components/custom_text.dart",
-    "package_path": "components/custom_text.dart",
-    "test_path": "test/components/custom_text_golden_test.dart",
+    "widget_name": "CustomDialog",
+    "widget_path": "lib/components/custom_dialog.dart",
+    "package_path": "components/custom_dialog.dart",
+    "test_path": "test/components/custom_dialog_golden_test.dart",
     "relative_path_depth": 1,
     "back_path": "../",
     "parameters": [
       {
-        "name": "text",
+        "name": "title",
         "type": "String",
         "is_required": true,
         "default_value": null
       },
       {
-        "name": "variant",
-        "type": "TextVariant",
+        "name": "content",
+        "type": "String",
+        "is_required": true,
+        "default_value": null
+      },
+      {
+        "name": "type",
+        "type": "DialogType",
         "is_required": false,
         "default_value": null
       },
       {
-        "name": "color",
+        "name": "actions",
+        "type": "List<Widget>?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "icon",
+        "type": "IconData?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "titleStyle",
+        "type": "TextStyle?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "contentStyle",
+        "type": "TextStyle?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "backgroundColor",
         "type": "Color?",
         "is_required": false,
         "default_value": null
       },
       {
-        "name": "fontSize",
-        "type": "double?",
+        "name": "borderRadius",
+        "type": "double",
         "is_required": false,
         "default_value": null
       },
       {
-        "name": "fontWeight",
-        "type": "FontWeight?",
-        "is_required": false,
-        "default_value": null
-      },
-      {
-        "name": "textAlign",
-        "type": "TextAlign?",
-        "is_required": false,
-        "default_value": null
-      },
-      {
-        "name": "maxLines",
-        "type": "int?",
-        "is_required": false,
-        "default_value": null
-      },
-      {
-        "name": "overflow",
-        "type": "TextOverflow?",
-        "is_required": false,
-        "default_value": null
-      },
-      {
-        "name": "isSelectable",
+        "name": "isDismissible",
         "type": "bool",
         "is_required": false,
         "default_value": null
       },
       {
-        "name": "onTap",
+        "name": "showCloseButton",
+        "type": "bool",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "onClosed",
         "type": "VoidCallback?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "width",
+        "type": "double?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "height",
+        "type": "double?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "padding",
+        "type": "EdgeInsetsGeometry",
         "is_required": false,
         "default_value": null
       }
     ],
-    "widget_category": "text",
+    "widget_category": "dialog",
     "common_use_cases": [
-      "interactive_element",
       "text_display",
+      "icon_display",
       "customizable_appearance"
     ]
   },

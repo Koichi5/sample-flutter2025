@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sample_flutter2025/weather/pages/weather_page.dart';
 import 'package:sample_flutter2025/components/custom_button.dart';
 import 'package:sample_flutter2025/components/custom_text.dart';
+import 'package:sample_flutter2025/components/custom_dialog.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -34,11 +35,12 @@ class HomePage extends StatelessWidget {
         title: const Text('Flutter Demo App'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
             const Text(
               'Choose a demo to explore:',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -106,8 +108,29 @@ class HomePage extends StatelessWidget {
                 },
               ),
             ),
+            const SizedBox(height: 16),
 
-            const Spacer(),
+            // Custom Dialog Demo
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.info_outline, color: Colors.teal),
+                title: const Text('Custom Dialog Demo'),
+                subtitle: const Text(
+                  'Explore different dialog types and interactions',
+                ),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CustomDialogDemo(),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 48),
 
             // Quick demo buttons
             const Text(
@@ -148,6 +171,7 @@ class HomePage extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

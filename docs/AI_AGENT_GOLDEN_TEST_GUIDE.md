@@ -47,6 +47,43 @@ dart tools/golden_test/enhanced_golden_test.dart both CustomButton lib/component
    dart tools/golden_test/enhanced_golden_test.dart both [WidgetName] [widget_path]
    ```
 
+### 🚨 レンダリングオーバーフロー発生時の対応
+
+**AI エージェントが従うべき手順：**
+
+1. **即座にテスト実行を停止**
+2. **以下のメッセージを開発者に報告**：
+
+```
+⚠️ レンダリングオーバーフローが発生しました
+
+Widget: [WidgetName]
+ファイル: [widget_path]
+発生箇所: Golden Test実行中
+
+【開発者による対応が必要です】
+以下のいずれかの対応を選択してください：
+
+1. Widget実装の修正（推奨）
+   - 適切なScrollViewやレスポンシブデザインの実装
+   - 小さなデバイスサイズでも適切に表示されるよう調整
+
+2. 固定サイズテストの選択
+   - 特定のデバイスサイズでのみテストを実行
+   - 複数プラットフォーム対応を放棄
+
+3. テストスキップ
+   - 現在のWidgetはGolden Testに適さない判断
+
+【AIエージェントは以下を行いません】
+❌ Widget実装の自動修正
+❌ テスト側でのScrollView追加
+❌ 勝手な制約変更
+```
+
+3. **開発者の明示的な指示を待つ**
+4. **指示があるまで当該 Widget のテストを実行しない**
+
 ## 📋 自動検出される情報
 
 Enhanced Golden Test Generator は以下の情報を自動的に検出します：
@@ -275,12 +312,129 @@ void main() {
 4. **Device not found**: Device.all が未定義
    → 正しい相対パスで device.dart を import
 
+5. **RenderFlex overflowed**: レンダリングオーバーフロー
+   → **⚠️ テスト実行を停止し、開発者に報告**
+   → **AI エージェントによる自動修正は禁止**
+
 ## 🎯 成功のポイント
 
 1. **段階的アプローチ**: 最初は基本的なテストから始める
 2. **エラーメッセージを活用**: 具体的なエラーメッセージから問題を特定
 3. **型システムを理解**: Dart の型システムに沿った値を使用
 4. **実際のデータに近い値**: UI の見た目を適切に確認できる値を設定
+
+## 📝 Golden Test 作成時の注意点
+
+### 1. **デフォルトは複数プラットフォーム対応**
+
+- **基本方針**: 常に`Device.all`を使用して複数のプラットフォーム（Phone、Tablet、Web 等）で検証
+- **必須インポート**: `import '../support/alchemist/device.dart';`を含める
+- **レスポンシブ UI**: 異なるサイズでのレイアウトの適応性を確認
+
+```dart
+// ✅ 推奨: 複数プラットフォーム対応（デフォルト）
+import '../support/alchemist/device.dart';
+
+goldenTest(
+  'renders correctly on various devices and themes',
+  fileName: 'component_name',
+  builder: () => GoldenTestGroup(
+    columns: 2,
+    children: Device.all
+        .map(
+          (device) => GoldenTestScenario(
+            name: device.name,
+            constraints: BoxConstraints.tight(device.size),
+            child: Builder(
+              builder: (context) {
+                return buildApp(brightness: device.brightness);
+              },
+            ),
+          ),
+        )
+        .toList(),
+  ),
+);
+```
+
+### 2. **レンダリングオーバーフロー対策**
+
+**⚠️ 重要な方針：Golden Test では実際の Widget の状態をそのまま検証すること**
+
+#### 🚫 やってはいけないこと
+
+```dart
+// ❌ テスト対象のWidgetを変更してはいけない
+// ❌ Golden Test側でScrollViewなどで囲んではいけない
+child: SingleChildScrollView(  // これは禁止
+  child: YourWidget(),
+)
+
+// ❌ テスト用にWidgetの実装を変更してはいけない
+// 実際のWidget実装にScrollViewを追加するのは禁止
+```
+
+#### ✅ 正しい対処方法
+
+**レンダリングオーバーフローが発生した場合：**
+
+1. **テスト実行を停止**
+2. **開発者に以下の情報を報告**：
+
+   ```
+   レンダリングオーバーフローが発生しました:
+   - Widget: [WidgetName]
+   - ファイル: [widget_path]
+   - 発生デバイス: [device.name]
+   - 制約: [constraints]
+
+   開発者による対応が必要です：
+   - Widgetの実装を見直してください
+   - 適切なScrollViewやレスポンシブデザインの実装を検討してください
+   - または、固定サイズでのテストが適切か判断してください
+   ```
+
+3. **開発者の判断を待つ**
+
+#### 🔧 開発者による対応例
+
+開発者が判断する対応方法：
+
+```dart
+// 開発者が実装を修正する場合
+class MyWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(  // 実装側で追加
+      child: Column(
+        children: [
+          // 実際のコンテンツ
+        ],
+      ),
+    );
+  }
+}
+
+// または、開発者が固定サイズテストを選択する場合
+// Golden Test側での最小限の調整（開発者の明示的な指示がある場合のみ）
+```
+
+### 3. **テストサイズの選択指針**
+
+- **第一選択**: `Device.all`を使用した複数プラットフォーム対応
+- **第二選択**: オーバーフロー発生時のみ固定サイズ
+- **コンポーネント単体**: 通常は`Device.all`で問題なし
+- **ページ全体**: `Device.all`で検証し、オーバーフロー時は要調整
+
+### 4. **インポートの管理**
+
+```dart
+// ✅ Device.all を使う場合（推奨・デフォルト）
+import '../support/alchemist/device.dart';
+
+// ❌ 固定サイズのみの場合（device.dart不要だがプラットフォーム対応を失う）
+// import '../support/alchemist/device.dart'; // 不要
+```
 
 ---
 
