@@ -1,0 +1,145 @@
+{
+  "request_type": "golden_test_mock_generation",
+  "timestamp": "2025-07-05T13:21:01.723658",
+  "analysis_result": {
+    "widget_name": "CustomText",
+    "widget_path": "lib/components/custom_text.dart",
+    "package_path": "components/custom_text.dart",
+    "test_path": "test/components/custom_text_golden_test.dart",
+    "relative_path_depth": 1,
+    "back_path": "../",
+    "parameters": [
+      {
+        "name": "text",
+        "type": "String",
+        "is_required": true,
+        "default_value": null
+      },
+      {
+        "name": "variant",
+        "type": "TextVariant",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "color",
+        "type": "Color?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "fontSize",
+        "type": "double?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "fontWeight",
+        "type": "FontWeight?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "textAlign",
+        "type": "TextAlign?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "maxLines",
+        "type": "int?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "overflow",
+        "type": "TextOverflow?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "isSelectable",
+        "type": "bool",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "onTap",
+        "type": "VoidCallback?",
+        "is_required": false,
+        "default_value": null
+      }
+    ],
+    "widget_category": "text",
+    "common_use_cases": [
+      "interactive_element",
+      "text_display",
+      "customizable_appearance"
+    ]
+  },
+  "instructions": {
+    "goal": "Generate appropriate mock data for Flutter Widget Golden Test",
+    "requirements": [
+      "Create realistic mock data for each parameter",
+      "Consider parameter names and types for context",
+      "Avoid infinite animations (e.g., isLoading: false)",
+      "Use appropriate default values for optional parameters",
+      "Generate readable test data that showcases the widget properly",
+      "Handle nullable types appropriately (use null or meaningful values)",
+      "Consider widget category and common use cases"
+    ],
+    "output_format": "Generate a complete Golden Test file with proper mock data",
+    "template_structure": {
+      "imports": [
+        "import 'package:alchemist/alchemist.dart';",
+        "import 'package:flutter/material.dart';",
+        "import 'package:flutter_test/flutter_test.dart';",
+        "import 'package:sample_flutter2025/{{package_path}}';",
+        "import '{{back_path}}support/alchemist/device.dart';"
+      ],
+      "test_structure": {
+        "group_name": "{{widget_name}} Golden Tests",
+        "test_name": "renders correctly on various devices and themes",
+        "file_name": "{{widget_name_snake_case}}",
+        "widget_wrapper": "Scaffold with Center child",
+        "theme": "Material Design 3 with purple seed color"
+      }
+    },
+    "mock_data_examples": {
+      "String": {
+        "text": "'Sample Text'",
+        "title": "'Sample Title'",
+        "description": "'Sample Description'",
+        "label": "'Sample Label'",
+        "hint": "'Enter text here'",
+        "default": "'Mock Value'"
+      },
+      "VoidCallback": "() { print('{{parameter_name}} tapped'); }",
+      "bool": {
+        "isLoading": "false",
+        "isEnabled": "true",
+        "isSelected": "false",
+        "isVisible": "true",
+        "default": "true"
+      },
+      "Color": "Colors.blue",
+      "IconData": "Icons.star",
+      "double": {
+        "fontSize": "16.0",
+        "width": "100.0",
+        "height": "50.0",
+        "default": "1.0"
+      },
+      "int": {
+        "maxLines": "2",
+        "itemCount": "5",
+        "default": "1"
+      },
+      "enum_examples": {
+        "ButtonSize": "ButtonSize.medium",
+        "TextVariant": "TextVariant.body",
+        "TextAlign": "TextAlign.center"
+      }
+    }
+  }
+}
