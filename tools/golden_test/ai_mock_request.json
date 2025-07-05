@@ -1,0 +1,175 @@
+{
+  "request_type": "golden_test_mock_generation",
+  "timestamp": "2025-07-05T13:34:08.840053",
+  "analysis_result": {
+    "widget_name": "CustomDialog",
+    "widget_path": "lib/components/custom_dialog.dart",
+    "package_path": "components/custom_dialog.dart",
+    "test_path": "test/components/custom_dialog_golden_test.dart",
+    "relative_path_depth": 1,
+    "back_path": "../",
+    "parameters": [
+      {
+        "name": "title",
+        "type": "String",
+        "is_required": true,
+        "default_value": null
+      },
+      {
+        "name": "content",
+        "type": "String",
+        "is_required": true,
+        "default_value": null
+      },
+      {
+        "name": "type",
+        "type": "DialogType",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "actions",
+        "type": "List<Widget>?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "icon",
+        "type": "IconData?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "titleStyle",
+        "type": "TextStyle?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "contentStyle",
+        "type": "TextStyle?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "backgroundColor",
+        "type": "Color?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "borderRadius",
+        "type": "double",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "isDismissible",
+        "type": "bool",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "showCloseButton",
+        "type": "bool",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "onClosed",
+        "type": "VoidCallback?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "width",
+        "type": "double?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "height",
+        "type": "double?",
+        "is_required": false,
+        "default_value": null
+      },
+      {
+        "name": "padding",
+        "type": "EdgeInsetsGeometry",
+        "is_required": false,
+        "default_value": null
+      }
+    ],
+    "widget_category": "dialog",
+    "common_use_cases": [
+      "text_display",
+      "icon_display",
+      "customizable_appearance"
+    ]
+  },
+  "instructions": {
+    "goal": "Generate appropriate mock data for Flutter Widget Golden Test",
+    "requirements": [
+      "Create realistic mock data for each parameter",
+      "Consider parameter names and types for context",
+      "Avoid infinite animations (e.g., isLoading: false)",
+      "Use appropriate default values for optional parameters",
+      "Generate readable test data that showcases the widget properly",
+      "Handle nullable types appropriately (use null or meaningful values)",
+      "Consider widget category and common use cases"
+    ],
+    "output_format": "Generate a complete Golden Test file with proper mock data",
+    "template_structure": {
+      "imports": [
+        "import 'package:alchemist/alchemist.dart';",
+        "import 'package:flutter/material.dart';",
+        "import 'package:flutter_test/flutter_test.dart';",
+        "import 'package:sample_flutter2025/{{package_path}}';",
+        "import '{{back_path}}support/alchemist/device.dart';"
+      ],
+      "test_structure": {
+        "group_name": "{{widget_name}} Golden Tests",
+        "test_name": "renders correctly on various devices and themes",
+        "file_name": "{{widget_name_snake_case}}",
+        "widget_wrapper": "Scaffold with Center child",
+        "theme": "Material Design 3 with purple seed color"
+      }
+    },
+    "mock_data_examples": {
+      "String": {
+        "text": "'Sample Text'",
+        "title": "'Sample Title'",
+        "description": "'Sample Description'",
+        "label": "'Sample Label'",
+        "hint": "'Enter text here'",
+        "default": "'Mock Value'"
+      },
+      "VoidCallback": "() { print('{{parameter_name}} tapped'); }",
+      "bool": {
+        "isLoading": "false",
+        "isEnabled": "true",
+        "isSelected": "false",
+        "isVisible": "true",
+        "default": "true"
+      },
+      "Color": "Colors.blue",
+      "IconData": "Icons.star",
+      "double": {
+        "fontSize": "16.0",
+        "width": "100.0",
+        "height": "50.0",
+        "default": "1.0"
+      },
+      "int": {
+        "maxLines": "2",
+        "itemCount": "5",
+        "default": "1"
+      },
+      "enum_examples": {
+        "ButtonSize": "ButtonSize.medium",
+        "TextVariant": "TextVariant.body",
+        "TextAlign": "TextAlign.center"
+      }
+    }
+  }
+}
