@@ -24,16 +24,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for new golden images
-        id: check_new_goldens
+      - name: Check for golden image changes
+        id: check_golden_changes
         run: |
           NEW_GOLDENS_FOUND=false
           NEW_GOLDENS_LIST=""
+          UPDATED_GOLDENS_FOUND=false
+          UPDATED_GOLDENS_LIST=""
 
           # Check if there are any golden images that weren't in the base branch
           git fetch origin ${{ github.event.pull_request.base.ref }}
 
-          # Find golden images in current branch
+          # Find all golden images in current branch
           if find test -name "*.png" -path "*/goldens/ci/*" | while read -r golden_file; do
             # Convert to relative path
             rel_path=${golden_file#./}
@@ -43,17 +45,33 @@ jobs:
               echo "true" > /tmp/new_golden_found
               echo "$rel_path" >> /tmp/new_goldens_list
               echo "🆕 New golden image found: $rel_path"
+            else
+              # Check if existing file has changed
+              if ! git diff --quiet origin/${{ github.event.pull_request.base.ref }}...HEAD -- "$rel_path"; then
+                echo "true" > /tmp/updated_golden_found
+                echo "$rel_path" >> /tmp/updated_goldens_list
+                echo "🔄 Updated golden image found: $rel_path"
+              fi
             fi
           done; then
             if [[ -f "/tmp/new_golden_found" ]]; then
               NEW_GOLDENS_FOUND=true
               NEW_GOLDENS_LIST=$(cat /tmp/new_goldens_list 2>/dev/null || echo "")
             fi
+            if [[ -f "/tmp/updated_golden_found" ]]; then
+              UPDATED_GOLDENS_FOUND=true
+              UPDATED_GOLDENS_LIST=$(cat /tmp/updated_goldens_list 2>/dev/null || echo "")
+            fi
           fi
 
           echo "new_goldens_found=$NEW_GOLDENS_FOUND" >> $GITHUB_OUTPUT
           echo "new_goldens_list<<EOF" >> $GITHUB_OUTPUT
           echo "$NEW_GOLDENS_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "updated_goldens_found=$UPDATED_GOLDENS_FOUND" >> $GITHUB_OUTPUT
+          echo "updated_goldens_list<<EOF" >> $GITHUB_OUTPUT
+          echo "$UPDATED_GOLDENS_LIST" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Check for existing failure images
@@ -99,7 +117,7 @@ jobs:
           HAS_CHANGES=false
 
           # Handle new golden images (first-time)
-          if [[ "${{ steps.check_new_goldens.outputs.new_goldens_found }}" == "true" ]]; then
+          if [[ "${{ steps.check_golden_changes.outputs.new_goldens_found }}" == "true" ]]; then
             HAS_CHANGES=true
             COMMENT_BODY="${COMMENT_BODY}### ✨ New Golden Images\n\n"
 
@@ -110,7 +128,24 @@ jobs:
                 COMMENT_BODY="${COMMENT_BODY}#### 🆕 \`$widget_name\`\n\n"
                 COMMENT_BODY="${COMMENT_BODY}![New Golden Image](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.head.sha }}/$golden_path)\n\n"
               fi
-            done <<< "${{ steps.check_new_goldens.outputs.new_goldens_list }}"
+            done <<< "${{ steps.check_golden_changes.outputs.new_goldens_list }}"
+          fi
+
+          # Handle updated golden images
+          if [[ "${{ steps.check_golden_changes.outputs.updated_goldens_found }}" == "true" ]]; then
+            HAS_CHANGES=true
+            COMMENT_BODY="${COMMENT_BODY}### 🔄 Updated Golden Images\n\n"
+
+            while IFS= read -r golden_path; do
+              if [[ -n "$golden_path" ]]; then
+                filename=$(basename "$golden_path")
+                widget_name=${filename%.png}
+                COMMENT_BODY="${COMMENT_BODY}#### 🔄 \`$widget_name\`\n\n"
+                COMMENT_BODY="${COMMENT_BODY}| Before | After |\n"
+                COMMENT_BODY="${COMMENT_BODY}|--------|-------|\n"
+                COMMENT_BODY="${COMMENT_BODY}| ![Before](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.base.sha }}/$golden_path) | ![After](https://github.com/${{ github.repository }}/raw/${{ github.event.pull_request.head.sha }}/$golden_path) |\n\n"
+              fi
+            done <<< "${{ steps.check_golden_changes.outputs.updated_goldens_list }}"
           fi
 
           # Handle failure images (Before/After comparison)
@@ -138,18 +173,25 @@ jobs:
           # If no changes detected
           if [[ "$HAS_CHANGES" == "false" ]]; then
             COMMENT_BODY="${COMMENT_BODY}✅ No golden image changes detected.\n"
+          else
+            COMMENT_BODY="${COMMENT_BODY}---\n\n"
+            COMMENT_BODY="${COMMENT_BODY}💡 **Developer Notes**:\n"
+            COMMENT_BODY="${COMMENT_BODY}- ✅ Review the visual changes above\n"
+            COMMENT_BODY="${COMMENT_BODY}- ✅ Ensure changes are intentional\n"
+            COMMENT_BODY="${COMMENT_BODY}- ✅ Golden images have been updated automatically\n\n"
           fi
 
           # Save comment body
           echo "$COMMENT_BODY" > /tmp/comment_body.md
           echo "has_changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
 
-      - name: Upload failure images as artifacts (if any)
-        if: steps.check_failures.outputs.failure_images_found == 'true'
+      - name: Upload golden images as artifacts (if any changes)
+        if: steps.check_golden_changes.outputs.new_goldens_found == 'true' || steps.check_golden_changes.outputs.updated_goldens_found == 'true' || steps.check_failures.outputs.failure_images_found == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: golden-test-failures
+          name: golden-test-images
           path: |
+            test/**/goldens/ci/*.png
             test/**/*_masterImage.png
             test/**/*_testImage.png
             test/**/*_isolatedDiff.png
@@ -165,7 +207,7 @@ jobs:
           body-includes: "🎨 Golden Test Results"
 
       - name: Create or update comment
-        if: steps.generate_comment.outputs.has_changes == 'true'
+        if: steps.generate_comment.outputs.has_changes == 'true' || steps.check_golden_changes.outputs.new_goldens_found == 'true' || steps.check_golden_changes.outputs.updated_goldens_found == 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.find_comment.outputs.comment-id }}
