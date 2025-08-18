@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sample_flutter2025/flutter_3_35/flutter_335_home_page.dart';
 import 'package:sample_flutter2025/weather/pages/weather_page.dart';
 import 'package:sample_flutter2025/components/custom_button.dart';
 import 'package:sample_flutter2025/components/custom_text.dart';
@@ -103,6 +104,49 @@ class HomePage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const CustomDialogDemo(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+                            const SizedBox(height: 16),
+
+              // Flutter 3.35 New Features Demo
+              Card(
+                color: Colors.blue.shade50,
+                child: ListTile(
+                  leading: Icon(
+                    Icons.new_releases,
+                    color: Colors.blue.shade600,
+                  ),
+                  title: const Text('Flutter 3.35 新機能'),
+                  subtitle: const Text(
+                    'Web Hot Reload, Widget Previews, Material 3等の最新機能',
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'NEW',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const Flutter335HomePage(),
                       ),
                     );
                   },
